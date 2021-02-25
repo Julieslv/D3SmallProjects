@@ -1,21 +1,24 @@
 import * as d3 from 'd3';
+import { csv } from 'd3';
 
-const drawScatter = async () => {
-	const dataset = await d3.json('./data/my_weather_data.json');
-
-	/*
-  1. Accessor functions
-*/
-	const xAccessor = d => d.dewPoint;
-	const yAccessor = d => d.humidity;
-	const colourAccessor = d => d.cloudCover;
+const drawChart = async () => {
+	// 1. Access data
+	const dataset = await d3.csv('./data/bob_ross_paintings.csv');
+	console.log(dataset[0]);
 
 	/*
-  2. Creat the chart dimensions
+    1. Accessor functions
+  */
+
+	const xAccessor = d => d.season;
+	const yAccessor = d => d.num_colors;
+	const colourAccessor = d => d.color_hex;
+
+	/*
+  2. Create the chart dimensions
   Using D3.min() method ignores undefined and null values, where math.min() will not and returns 0 or NAN.
   We get the smallest edge of the window to make and calculate or square, scatter plots should always be squares
 */
-
 	const width = d3.min([window.innerWidth * 0.9, window.innerHeight * 0.9]);
 
 	const dimensions = {
@@ -40,9 +43,12 @@ const drawScatter = async () => {
 	const wrapper = d3
 		.select('#wrapper')
 		.append('svg')
-		.style('background', '#ffee00')
+		.style('background', '#eeeeee')
 		.attr('width', dimensions.width)
 		.attr('height', dimensions.height);
+
+	// add to the definition each image to map
+	const defs = wrapper.append('svg:defs');
 
 	const bounds = wrapper
 		.append('g')
@@ -50,6 +56,7 @@ const drawScatter = async () => {
 			'transform',
 			`translate(${dimensions.margin.left}px, ${dimensions.margin.top}px)`
 		);
+
 	/*
       4. Create scales
     */
@@ -66,11 +73,13 @@ const drawScatter = async () => {
 		.range([dimensions.boundedWidth, 0]) // we invert the start point bottom is the largest pixel value, the screen is mirrored
 		.nice(); // takes the domain scales and makes them round numbers
 
+	// console.log(colourAccessor);
 	const colorScale = d3
 		.scaleLinear()
 		.domain(d3.extent(dataset, colourAccessor))
 		.range(['rgba(255,0,241, 0.33)', 'rgba(255,0,241, 1)']);
-
+	//rgba(255, 238, 0, 1) #ffee00
+	// console.log(colourAccessor);
 	/*
 			5 Draw data
 	*/
@@ -83,18 +92,41 @@ const drawScatter = async () => {
 		This creates a close relationship between your data and
 		graphical elements which makes data-driven modification of the elements straightforward.
 	*/
+	const size = 50;
+
 	const drawDots = (data, colour) => {};
+
+	const pattern = defs
+		.selectAll('pattern')
+		.data(dataset)
+		.enter()
+		.append('pattern')
+		.attr('id', (d, i) => {
+			console.log(i);
+			return `img_${i}`;
+		})
+		.attr('width', 1)
+		.attr('height', 1)
+		.attr('patternUnits', 'objectBoundingBox')
+		.append('image')
+		.attr('x', 0)
+		.attr('y', 0)
+		.attr('width', size)
+		.attr('height', size)
+		.attr('xlink:href', d => d.img_src);
+	console.log(pattern);
+
 	const dots = bounds.selectAll('circle').data(dataset);
 	dots
 		.join('circle')
 		.attr('cx', data => xScale(xAccessor(data)))
 		.attr('cy', data => yScale(yAccessor(data)))
-		.attr('r', 5)
-		.attr('fill', d => {
-			console.log(colourAccessor(d));
-			return colorScale(colourAccessor(d));
-		});
-	console.log(dots);
+		.attr('r', size)
+		// .attr('fill', '#fff')
+		.style('fill', (d, i) => `url(#img_${i})`);
+
+	/* Fill the background with an image. */
+	// console.log(dots);
 
 	/*
 		6. Draw peripherals
@@ -112,7 +144,7 @@ const drawScatter = async () => {
 		.attr('y', dimensions.margin.bottom - 20)
 		.attr('fill', 'black')
 		.style('font-size', '1.4em')
-		.html('Dew point (&deg;F)');
+		.html('Film season');
 
 	const yAxisGenerator = d3.axisLeft().scale(yScale).ticks(4);
 
@@ -124,11 +156,8 @@ const drawScatter = async () => {
 		.attr('y', -dimensions.margin.left + 28)
 		.attr('fill', 'black')
 		.style('font-size', '1.4em')
-		.text('Relative humidity')
+		.text('Unique colours')
 		.style('transform', 'rotate(-90deg)')
 		.style('text-anchor', 'middle');
-
-	console.log(dataset[0]);
 };
-
-drawScatter();
+drawChart();
