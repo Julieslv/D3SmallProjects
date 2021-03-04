@@ -11,31 +11,30 @@ const drawBars = async () => {
 	 * and returns the value for a specific dimension
 	 */
 
+	// 2. Create chart dimensions
+
+	const width = 600;
+
+	// create a dimensions object
+	let dimensions = {
+		width: width,
+		height: width * 0.6,
+		margin: {
+			top: 30,
+			right: 20,
+			bottom: 50,
+			left: 20,
+		},
+	};
+	dimensions.boundedWidth =
+		dimensions.width - dimensions.margin.left - dimensions.margin.right;
+	dimensions.boundedHeight =
+		dimensions.height - dimensions.margin.top - dimensions.margin.bottom;
+	// console.log(dimensions);
+
 	const drawHistogram = metric => {
 		const xAccessor = d => d[metric];
 		const yAccessor = d => d.length;
-
-		// 2. Create chart dimensions
-
-		const width = 600;
-
-		// create a dimensions object
-		let dimensions = {
-			width: width,
-			height: width * 0.6,
-			margin: {
-				top: 30,
-				right: 20,
-				bottom: 50,
-				left: 20,
-			},
-		};
-		dimensions.boundedWidth =
-			dimensions.width - dimensions.margin.left - dimensions.margin.right;
-		dimensions.boundedHeight =
-			dimensions.height - dimensions.margin.top - dimensions.margin.bottom;
-		// console.log(dimensions);
-
 		// 3. Draw the canvas/SVG
 		const wrapper = d3
 			.select('#wrapper')
@@ -82,9 +81,25 @@ const drawBars = async () => {
 			.nice();
 
 		// 5, Draw data
-		const binsGroup = bounds.append('g');
+		const binsGroup = bounds
+			.append('g')
+			.attr('tabindex', '0')
+			.attr('role', 'list')
+			.attr('aria-label', 'Histogram bars');
 
-		const binGroups = binsGroup.selectAll('g').data(bins).join('g');
+		const binGroups = binsGroup
+			.selectAll('g')
+			.data(bins)
+			.join('g')
+			.attr('tabindex', '0')
+			.attr('role', 'listitem')
+			.attr(
+				'aria-label',
+				d =>
+					`There were ${yAccessor(d)} days between ${d.x0} and ${
+						d.x1
+					} ${metric} levels`
+			);
 		const barPadding = 1;
 
 		const barRects = binGroups
@@ -119,7 +134,9 @@ const drawBars = async () => {
 			.attr('y2', dimensions.boundedHeight - 5)
 			.attr('stroke', '#0D76FF')
 			// .attr('stroke', '#3a0014')
-			.style('stroke-dasharray', '3px 4px');
+			.style('stroke-dasharray', '3px 4px')
+			.attr('role', 'presentation')
+			.attr('aria-hidden', true);
 
 		const meanLabel = bounds
 			.append('text')
@@ -129,7 +146,9 @@ const drawBars = async () => {
 			.attr('fill', '#b7ab00')
 			.attr('font-size', 9)
 			.style('text-transform', 'uppercase')
-			.text('mean');
+			.text('mean')
+			.attr('role', 'presentation')
+			.attr('aria-hidden', true);
 
 		const xAxisGenerator = d3.axisBottom().scale(xScale);
 		const xAxis = bounds
@@ -144,7 +163,9 @@ const drawBars = async () => {
 			.attr('fill', '#887f00')
 			.style('font-size', '1em')
 			.text(metric)
-			.style('text-transform', 'capitalize');
+			.style('text-transform', 'capitalize')
+			.attr('role', 'presentation')
+			.attr('aria-hidden', true);
 	};
 	const metrics = [
 		'windSpeed',
