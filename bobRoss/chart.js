@@ -1,18 +1,25 @@
 import * as d3 from 'd3';
 import { csv } from 'd3';
+import { parse } from 'upath';
 
 const drawChart = async () => {
 	// 1. Access data
 	const dataset = await d3.csv('./data/bob_ross_paintings.csv');
-	console.log(dataset[0]);
+	console.log(dataset[20]);
 
 	/*
     1. Accessor functions
   */
 
-	const xAccessor = d => d.season;
+	const xAccessor = d => d.episode;
 	const yAccessor = d => d.num_colors;
-	const colourAccessor = d => d.color_hex;
+	const colourAccessor = d => {
+		let color_hex = d.color_hex;
+		color_hex = color_hex.substr(2, color_hex.length - 3);
+		color_hex = color_hex.replace(/'/g, '');
+		color_hex = color_hex.split(',');
+		return color_hex;
+	};
 
 	/*
   2. Create the chart dimensions
@@ -80,6 +87,16 @@ const drawChart = async () => {
 		.range(['rgba(255,0,241, 0.33)', 'rgba(255,0,241, 1)']);
 	//rgba(255, 238, 0, 1) #ffee00
 	// console.log(colourAccessor);
+
+	// as in dustbin or container and array of arrays
+	const binGenerator = d3
+		.bin()
+		.domain(xScale.domain())
+		.value(xAccessor)
+		.thresholds(5);
+
+	const bins = binGenerator(dataset);
+	// console.log('BINS: ', bins);
 	/*
 			5 Draw data
 	*/
@@ -101,32 +118,38 @@ const drawChart = async () => {
 		.data(dataset)
 		.enter()
 		.append('pattern')
-		.attr('id', (d, i) => {
-			console.log(i);
-			return `img_${i}`;
-		})
+		.attr('id', (d, i) => `img_${i}`)
 		.attr('width', 1)
 		.attr('height', 1)
 		.attr('patternUnits', 'objectBoundingBox')
 		.append('image')
 		.attr('x', 0)
-		.attr('y', 0)
-		.attr('width', size)
-		.attr('height', size)
+		.attr('y', -size / 2)
+		.attr('width', size * 3)
+		.attr('height', size * 3)
 		.attr('xlink:href', d => d.img_src);
-	console.log(pattern);
 
 	const dots = bounds.selectAll('circle').data(dataset);
 	dots
 		.join('circle')
+		.transition()
 		.attr('cx', data => xScale(xAccessor(data)))
 		.attr('cy', data => yScale(yAccessor(data)))
 		.attr('r', size)
 		// .attr('fill', '#fff')
 		.style('fill', (d, i) => `url(#img_${i})`);
+	// .selectAll(colourAccessor)
+	// .join('circle')
+	// .attr('cx', (data, index) => {
+	// 	console.log(data);
+	// 	return 10 + index * 2;
+	// })
+	// .attr('cy', (data, index) => 10 + index * 2.5)
+	// .attr('r', 10)
+	// .style('fill', 'red');
 
 	/* Fill the background with an image. */
-	// console.log(dots);
+	console.log(dots);
 
 	/*
 		6. Draw peripherals
