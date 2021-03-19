@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 
 const drawScatter = async () => {
-	const dataset = await d3.json('./data/my_weather_data.json');
+	const data = await d3.json('./data/my_weather_data.json');
 
 	/*
   1. Accessor functions
@@ -56,19 +56,19 @@ const drawScatter = async () => {
 
 	const xScale = d3
 		.scaleLinear()
-		.domain(d3.extent(dataset, xAccessor))
+		.domain(d3.extent(data, xAccessor))
 		.range([0, dimensions.boundedWidth])
 		.nice(); // takes the domain scales and makes them round numbers
 
 	const yScale = d3
 		.scaleLinear()
-		.domain(d3.extent(dataset, yAccessor))
+		.domain(d3.extent(data, yAccessor))
 		.range([dimensions.boundedWidth, 0]) // we invert the start point bottom is the largest pixel value, the screen is mirrored
 		.nice(); // takes the domain scales and makes them round numbers
 
 	const colorScale = d3
 		.scaleLinear()
-		.domain(d3.extent(dataset, colourAccessor))
+		.domain(d3.extent(data, colourAccessor))
 		.range(['rgba(255,0,241, 0.33)', 'rgba(255,0,241, 1)']);
 
 	/*
@@ -84,14 +84,15 @@ const drawScatter = async () => {
 		graphical elements which makes data-driven modification of the elements straightforward.
 	*/
 	const drawDots = (data, colour) => {};
-	const dots = bounds.selectAll('circle').data(dataset);
-	dots
+	const dots = bounds
+		.selectAll('circle')
+		.data(data)
 		.join('circle')
-		.attr('cx', data => xScale(xAccessor(data)))
-		.attr('cy', data => yScale(yAccessor(data)))
+		.attr('cx', d => xScale(xAccessor(d)))
+		.attr('cy', d => yScale(yAccessor(d)))
 		.attr('r', 5)
 		.attr('fill', d => {
-			console.log(colourAccessor(d));
+			// console.log(colourAccessor(d));
 			return colorScale(colourAccessor(d));
 		});
 	console.log(dots);
@@ -110,7 +111,7 @@ const drawScatter = async () => {
 		.append('text')
 		.attr('x', dimensions.boundedWidth / 2)
 		.attr('y', dimensions.margin.bottom - 20)
-		.attr('fill', 'black')
+		.attr('fill', '#34495e')
 		.style('font-size', '1.4em')
 		.html('Dew point (&deg;F)');
 
@@ -122,13 +123,91 @@ const drawScatter = async () => {
 		.append('text')
 		.attr('x', -dimensions.boundedHeight / 2)
 		.attr('y', -dimensions.margin.left + 28)
-		.attr('fill', 'black')
+		.attr('fill', '#34495e')
 		.style('font-size', '1.4em')
-		.text('Relative humidity')
 		.style('transform', 'rotate(-90deg)')
-		.style('text-anchor', 'middle');
+		.style('text-anchor', 'middle')
+		.text('Relative humidity');
 
-	console.log(dataset[0]);
+	/*
+		6. Setup interactions
+	*/
+	const delaunay = d3.Delaunay.from(
+		data,
+		d => xScale(xAccessor(d)),
+		d => yScale(yAccessor(d))
+	);
+
+	const tooltip = d3.select('#tooltip');
+	const onMouseEnter = (event, d) => {
+		// console.log(d);
+		/*
+		 * you have to ask d3 to select it,
+		 * you can't ask javascript it will not work.
+		 */
+		// const dot = d3.select(event.currentTarget);
+		const dateParser = d3.timeParse('%Y-%m-%d');
+		const formatDate = d3.timeFormat('%A %-d %B, %Y');
+		// console.log(formatDate(dateParser(d.date)));
+
+		const x = xScale(xAccessor(d)) + dimensions.margin.left;
+		const y = yScale(yAccessor(d)) + dimensions.margin.top;
+
+		const date = formatDate(dateParser(d.date));
+		// dot.transition().attr('r', 10);
+		tooltip.select('#date').text(date);
+		tooltip.select('#humidity').text(xAccessor(d));
+		tooltip.select('#dew-point').text(yAccessor(d));
+		tooltip.style(
+			'transform',
+			`translate(
+				calc(-50% + ${x}px),
+				calc(-100% + ${y}px))`
+		);
+
+		/*
+		! We create a new dot over the voronoi so that we can access it over the voronoi
+		*/
+		const activeDot = bounds
+			.append('circle')
+			.attr('class', 'active-dot')
+			.attr('cx', xScale(xAccessor(d)))
+			.attr('cy', yScale(yAccessor(d)))
+			.attr('r', 10)
+			.attr('fill', colourAccessor(d))
+			.attr('pointer-events', 'none');
+		tooltip.style('opacity', '1');
+	};
+	const onMouseLeave = event => {
+		// NOTE: you have to ask d3 to select it, you can't ask javascript it will not work.
+		// const dot = d3.select(event.currentTarget);
+		// dot.transition().attr('r', 5);
+
+		d3.selectAll('.active-dot').remove();
+		tooltip.style('opacity', '0');
+	};
+
+	const voronoi = delaunay.voronoi();
+	//? Redefine where the bounds of the voronoi are.
+	//? it does not know where you end it and you can
+	//? end up with edges in the wrong place.
+	voronoi.xmax = dimensions.boundedWidth;
+	voronoi.ymax = dimensions.boundedHeight;
+
+	console.log(data);
+	console.log(voronoi);
+
+	bounds
+		.selectAll('.voronoi')
+		.data(data)
+		.join('path')
+		.attr('class', 'voronoi')
+		.attr('d', (d, i) => {
+			console.log(i);
+			return voronoi.renderCell(i);
+		})
+		.on('mouseenter', onMouseEnter)
+		.on('mouseleave', onMouseLeave);
 };
 
 drawScatter();
